@@ -77,7 +77,7 @@ API_KEY_ALPHAVANTAGE = os.getenv("OPENBB_API_KEY_ALPHAVANTAGE") or "REPLACE_ME"
 
 # https://financialmodelingprep.com/developer
 API_KEY_FINANCIALMODELINGPREP = (
-    os.getenv("OPENBB_API_KEY_FINANCIALMODELINGPREP") or "REPLACE_ME"
+    os.getenv("OPENBB_API_KEY_FINANCIALMODELINGPREP") or "a5e6b76f3293e397d93377648bec23f0"
 )
 
 # https://www.quandl.com/tools/api

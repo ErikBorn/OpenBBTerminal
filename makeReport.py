@@ -1,16 +1,18 @@
 from multiprocessing.connection import wait
 from openbb_terminal import api as openbb
 from openbb_terminal.stocks.fundamental_analysis import av_model
-import datetime as dt
 import pandas as pd
-import numpy as np
 import time
 
+def clean_numbers(dataframe):
+    for column in dataframe.columns:
+        if column != 'Reported Currency' and column != "reportedCurrency":
+            dataframe[column] = dataframe[column].replace({"None": 0,"K":"*1e3", "M":"*1e6", "B":"*1e9", "T":"*1e9"}, regex=True).map(pd.eval).astype(int)
+
 #These are the export parameters
-exportTicker = 'dis'
-num = 15 #Seems to limit to five anyway...
-quarterly = False #Currently doesn't seem to work with True, minor but in number reformat?
-stock_list = ["aapl","bird","AXP","ETSY","IopDXX","NVDA","TGT","DIS","YETI"]
+stock_list = ["aapl","bird","AXP","ETSY","IDXX","NVDA","TGT","DIS","YETI"] #Portfolio: ["aapl","bird","AXP","ETSY","IDXX","NVDA","TGT","DIS","YETI"] #Every stock you want data on!
+num = 15            #Seems to limit to five anyway...
+quarterly = False 
 
 for exportTicker in stock_list:
     #This uses five separate API calls to get the information into DataFrames -- max use of one (set of five) per minute
@@ -30,24 +32,14 @@ for exportTicker in stock_list:
     #Fixes earnings format (writes in column titles)
     df_earnings.columns = df_earnings.iloc[0]
     df_earnings = df_earnings.drop(df_earnings.index[0])
+    # if quarterly:
+    #     df_earnings = df_earnings.drop(df_earnings.index[0])
 
     #This converts all the strings into numbers inside the dataframes -- a little clunky but seems to work
-    for column in df_cash.columns:
-        if column != 'Reported Currency' and column != "reportedCurrency":
-            df_cash[column] = df_cash[column].replace({"None": 0,"K":"*1e3", "M":"*1e6", "B":"*1e9", "T":"*1e9"}, regex=True).map(pd.eval).astype(int)
-
-    for column in df_income.columns:
-        if column != 'Reported Currency' and column != "reportedCurrency":
-            df_income[column] = df_income[column].replace({"None": 0,"K":"*1e3", "M":"*1e6", "B":"*1e9", "T":"*1e9"}, regex=True).map(pd.eval).astype(int)
-
-    for column in df_balance.columns:
-        if column != 'Reported Currency' and column != "reportedCurrency":
-            df_balance[column] = df_balance[column].replace({"None": 0,"K":"*1e3", "M":"*1e6", "B":"*1e9", "T":"*1e9"}, regex=True).map(pd.eval).astype(int)
-
-    for column in df_earnings.columns:
-        if column != 'Reported Currency' and column != "reportedCurrency":
-            df_earnings[column] = df_earnings[column].replace({"None": 0,"K":"*1e3", "M":"*1e6", "B":"*1e9", "T":"*1e9"}, regex=True).map(pd.eval).astype(int)
-
+    df_list = [df_cash,df_income,df_balance,df_earnings]
+    for data in df_list:
+        clean_numbers(data)
+    
     ###Creates and calculates the df_metrics dataframe
     df_metrics = pd.DataFrame() #Creates
     #Caluculations
@@ -66,23 +58,30 @@ for exportTicker in stock_list:
             + (df_cash.iloc[i+1,df_cash.columns.get_loc('changeInOperatingAssets')]-df_cash.iloc[i+1,df_cash.columns.get_loc('changeInOperatingLiabilities')]) < 0:
             df_metrics.iloc[i+1,df_metrics.columns.get_loc('ROIIC')] = "infinite"
         else: 
-            df_metrics.iloc[i+1,df_metrics.columns.get_loc('ROIIC')] = 100.*(df_income.iloc[i+1,df_income.columns.get_loc('operatingIncome')] - df_income.iloc[i,df_income.columns.get_loc('operatingIncome')]) /\
+            df_metrics.iloc[i+1,df_metrics.columns.get_loc('ROIIC')] = ((df_income.iloc[i+1,df_income.columns.get_loc('operatingIncome')] - df_income.iloc[i,df_income.columns.get_loc('operatingIncome')]) /\
                 (df_cash.iloc[i+1,df_cash.columns.get_loc('capitalExpenditures')] - df_cash.iloc[i+1,df_cash.columns.get_loc('depreciationDepletionAndAmortization')] \
-                    + (df_cash.iloc[i+1,df_cash.columns.get_loc('changeInOperatingAssets')]-df_cash.iloc[i+1,df_cash.columns.get_loc('changeInOperatingLiabilities')]))
+                    + (df_cash.iloc[i+1,df_cash.columns.get_loc('changeInOperatingAssets')]-df_cash.iloc[i+1,df_cash.columns.get_loc('changeInOperatingLiabilities')]))).round(4)*100.
     #Convert to Percentages
-    df_metrics['Gross Margin'] = df_metrics['Gross Margin'].mul(100)
-    df_metrics['Operating Margin'] = df_metrics['Operating Margin'].mul(100) 
-    df_metrics['ROTA'] = df_metrics['ROTA'].mul(100) 
+    df_metrics['Gross Margin'] = df_metrics['Gross Margin'].round(4).mul(100)
+    df_metrics['Operating Margin'] = df_metrics['Operating Margin'].round(4).mul(100) 
+    df_metrics['ROTA'] = df_metrics['ROTA'].round(4).mul(100) 
     #Final Cleanup
     df_metrics = df_metrics.transpose()
     df_metrics = df_metrics.reindex(['Gross Margin', 'Operating Margin','ROIIC', 'ROTA', 'FCF'])
     ###
 
     #Does the output
-    with pd.ExcelWriter(exportTicker+'report.xlsx') as writer:
+    if quarterly:
+        filename = '/Users/erikborn/Dropbox/Mac/Documents/Python/Financial_Files/'+exportTicker+'QRTreport.xlsx'
+    else:
+        filename = '/Users/erikborn/Dropbox/Mac/Documents/Python/Financial_Files/'+exportTicker+'report.xlsx'
+    
+    with pd.ExcelWriter(filename) as writer:
         df_metrics.to_excel(writer, sheet_name = "metrics")
         df_overview.to_excel(writer, sheet_name = "overview")
         df_cash.to_excel(writer, sheet_name = "cash")
         df_income.to_excel(writer, sheet_name = "income")
         df_balance.to_excel(writer, sheet_name = "balance")
         df_earnings.to_excel(writer, sheet_name = "earnings")
+
+

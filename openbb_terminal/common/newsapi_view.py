@@ -1,15 +1,25 @@
 """ News View """
 __docformat__ = "numpy"
 
-import logging
 import os
+import logging
+<<<<<<< HEAD
+import os
+=======
+>>>>>>> d4d3207c7a (?)
 from typing import Optional
 
 import pandas as pd
 
 from openbb_terminal.common import newsapi_model
+<<<<<<< HEAD
 from openbb_terminal.decorators import check_api_key, log_start_end
 from openbb_terminal.helper_funcs import export_data, print_rich_table
+=======
+from openbb_terminal.decorators import log_start_end
+from openbb_terminal.helper_funcs import export_data
+from openbb_terminal.helper_funcs import print_rich_table
+>>>>>>> d4d3207c7a (?)
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +33,10 @@ def display_news(
     show_newest: bool = True,
     sources: str = "",
     export: str = "",
+<<<<<<< HEAD
     sheet_name: Optional[str] = None,
+=======
+>>>>>>> d4d3207c7a (?)
 ) -> None:
     """Prints table showing news for a given term. [Source: NewsAPI]
 
@@ -52,5 +65,9 @@ def display_news(
         os.path.dirname(os.path.abspath(__file__)),
         f"news_{query}_{'_'.join(sources)}",
         pd.DataFrame(tables),
+<<<<<<< HEAD
         sheet_name,
     )
+=======
+    )
+>>>>>>> d4d3207c7a (?)
